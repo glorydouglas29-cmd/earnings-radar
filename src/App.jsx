@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+1import { useEffect, useMemo, useState } from "react";
 import {
   Activity, ArrowUpRight, BarChart3, CalendarDays, CheckCircle2,
   CircleAlert, ExternalLink, Filter, LoaderCircle, Radar, RefreshCw,
@@ -135,7 +135,7 @@ const [eventsScanned, setEventsScanned] = useState(0);
 
   try {
     const pageSize = 100;
-    const pageCount = 30;
+    const pageCount = 10;
 
     // Request 10 pages of 100 events.
     const requests = Array.from(
