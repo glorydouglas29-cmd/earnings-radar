@@ -5,8 +5,10 @@ import {
   Search, TrendingUp, WalletCards
 } from "lucide-react";
 
-const API_URL =
-  "https://gamma-api.polymarket.com/events?active=true&closed=false&limit=100&order=volume24hr&ascending=false";
+const API_BASE = "https://gamma-api.polymarket.com/events";
+
+const PAGE_SIZE = 100;
+const PAGE_COUNT = 5;
 
 const TERMS = [
   "earnings", "eps", "revenue", "quarterly results", "quarterly earnings",
@@ -24,8 +26,46 @@ function textOf(event) {
 }
 
 function isEarningsRelated(event) {
-  const text = textOf(event);
-  return TERMS.some((term) => text.includes(term));
+  const headlineText = [
+    event?.title,
+    event?.slug,
+    ...(event?.markets || []).flatMap((market) => [
+      market?.question,
+      market?.slug
+    ])
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  const earningsSignals = [
+    "earnings",
+    "eps",
+    "earnings per share",
+    "quarterly results",
+    "quarterly earnings",
+    "financial results",
+    "net income",
+    "revenue",
+    "beat estimates",
+    "miss estimates",
+    "earnings beat",
+    "earnings miss",
+    "profit forecast",
+    "sales forecast",
+    "q1 results",
+    "q2 results",
+    "q3 results",
+    "q4 results",
+    "q1 earnings",
+    "q2 earnings",
+    "q3 earnings",
+    "q4 earnings"
+  ];
+
+  return earningsSignals.some((term) =>
+    headlineText.includes(term)
+  );
 }
 
 function number(value) {
