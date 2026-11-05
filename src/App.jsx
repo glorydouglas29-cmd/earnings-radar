@@ -179,12 +179,13 @@ const [eventsScanned, setEventsScanned] = useState(0);
     setLastUpdated(new Date());
     setStatus("ready");
 
-  } catch (err) {
+    } catch (err) {
+    console.error("Earnings Radar API error:", err);
+
     setError(
-      err?.name === "AbortError"
-        ? "Request timed out. Please try again."
-        : err?.message ||
-          "Unable to connect to Polymarket."
+      `${err?.name || "Error"}: ${
+        err?.message || "Unknown API error"
+      }`
     );
 
     setStatus("error");
