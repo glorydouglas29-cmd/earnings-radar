@@ -135,7 +135,7 @@ const [eventsScanned, setEventsScanned] = useState(0);
 
   try {
     const pageSize = 100;
-    const pageCount = 10;
+    const pageCount = 30;
 
     // Request 10 pages of 100 events.
     const requests = Array.from(
