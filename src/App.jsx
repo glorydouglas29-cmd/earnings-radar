@@ -116,25 +116,72 @@ export default function App() {
   const [sort, setSort] = useState("volume");
 
   async function loadEvents() {
-    setStatus("loading");
-    setError("");
-    try {
-      const response = await fetch(API_URL, { headers: { Accept: "application/json" } });
-      if (!response.ok) throw new Error(`Polymarket returned HTTP ${response.status}`);
-      const payload = await response.json();
-      if (!Array.isArray(payload)) throw new Error("Unexpected response from the market data API.");
-      setEvents(payload.filter(isEarningsRelated));
-      setLastUpdated(new Date());
-      setStatus("ready");
-    } catch (err) {
-      setError(
-        err?.message ||
-        "Could not load live markets. The public API may be temporarily unavailable or blocked by your network."
-      );
-      setStatus("error");
-    }
-  }
+  setStatus("loading");
+  setError("");
 
+  try {
+    const requests = Array.from(
+      { length: PAGE_COUNT },
+      (_, page) =>
+        fetch(
+          `${API_BASE}?active=true&closed=false&limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}&order=volume_24hr&ascending=false`,
+          {
+            headers: {
+              Accept: "application/json"
+            }
+          }
+        )
+    );
+
+    const responses = await Promise.all(requests);
+
+    const failedResponse = responses.find(
+      (response) => !response.ok
+    );
+
+    if (failedResponse) {
+      throw new Error(
+        `Polymarket returned HTTP ${failedResponse.status}`
+      );
+    }
+
+    const pages = await Promise.all(
+      responses.map((response) => response.json())
+    );
+
+    if (!pages.every(Array.isArray)) {
+      throw new Error(
+        "Unexpected response from the market data API."
+      );
+    }
+
+    const uniqueEvents = new Map();
+
+    pages.flat().forEach((event) => {
+      const key = event?.id || event?.slug;
+
+      if (key) {
+        uniqueEvents.set(key, event);
+      }
+    });
+
+    const matchingEvents = [
+      ...uniqueEvents.values()
+    ].filter(isEarningsRelated);
+
+    setEvents(matchingEvents);
+    setLastUpdated(new Date());
+    setStatus("ready");
+
+  } catch (err) {
+    setError(
+      err?.message ||
+      "Could not load live markets. The public API may be temporarily unavailable or blocked by your network."
+    );
+
+    setStatus("error");
+  }
+}
   useEffect(() => {
     loadEvents();
   }, []);
