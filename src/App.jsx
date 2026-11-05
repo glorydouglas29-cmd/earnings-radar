@@ -26,46 +26,104 @@ function textOf(event) {
 }
 
 function isEarningsRelated(event) {
-  const headlineText = [
+  const markets = Array.isArray(event?.markets)
+    ? event.markets
+    : [];
+
+  const titleText = [
     event?.title,
     event?.slug,
-    ...(event?.markets || []).flatMap((market) => [
+    ...markets.flatMap((market) => [
       market?.question,
       market?.slug
     ])
   ]
     .filter(Boolean)
     .join(" ")
+    .toLowerCase()
+    .replace(/[-_]/g, " ");
+
+  const descriptionText = [
+    event?.description,
+    ...markets.map((market) => market?.description)
+  ]
+    .filter(Boolean)
+    .join(" ")
     .toLowerCase();
 
-  const earningsSignals = [
+  // Strong indicators that the market concerns company financial results.
+  const earningsTerms = [
     "earnings",
-    "eps",
     "earnings per share",
+    " eps ",
     "quarterly results",
     "quarterly earnings",
     "financial results",
     "net income",
     "revenue",
-    "beat estimates",
-    "miss estimates",
+    "profit forecast",
     "earnings beat",
     "earnings miss",
-    "profit forecast",
-    "sales forecast",
+    "beat estimates",
+    "miss estimates",
+    "q1 earnings",
+    "q2 earnings",
+    "q3 earnings",
+    "q4 earnings",
     "q1 results",
     "q2 results",
     "q3 results",
     "q4 results",
-    "q1 earnings",
-    "q2 earnings",
-    "q3 earnings",
-    "q4 earnings"
+    "quarterly revenue",
+    "quarterly profit",
+    "fiscal quarter",
+    "company earnings",
+    "company revenue",
+    "earnings report",
+    "earnings call"
   ];
 
-  return earningsSignals.some((term) =>
-    headlineText.includes(term)
+  const hasEarningsTerm = earningsTerms.some((term) =>
+    ` ${titleText} `.includes(term)
   );
+
+  if (hasEarningsTerm) {
+    return true;
+  }
+
+  // Use descriptions as a secondary signal to catch differently worded
+  // markets, but require both a financial term and an earnings context.
+  const financialTerms = [
+    "revenue",
+    "earnings",
+    "eps",
+    "net income",
+    "operating income",
+    "gross profit",
+    "net profit",
+    "sales",
+    "profit"
+  ];
+
+  const earningsContext = [
+    "quarter",
+    "quarterly",
+    "fiscal year",
+    "financial results",
+    "earnings report",
+    "earnings call",
+    "reported results"
+  ];
+
+  const hasFinancialTerm = financialTerms.some((term) =>
+    descriptionText.includes(term)
+  );
+
+  const hasEarningsContext = earningsContext.some((term) =>
+    descriptionText.includes(term)
+  );
+
+  return hasFinancialTerm && hasEarningsContext;
 }
 
 function number(value) {
