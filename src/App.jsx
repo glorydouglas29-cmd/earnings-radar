@@ -131,63 +131,36 @@ const [eventsScanned, setEventsScanned] = useState(0);
 
   const timeout = setTimeout(() => {
     controller.abort();
-  }, 30000);
+  }, 20000);
 
   try {
-    const pageSize = 100;
-    const pageCount = 10;
-
-    // Request 10 pages of 100 events.
-    const requests = Array.from(
-      { length: pageCount },
-      (_, page) => {
-        const params = new URLSearchParams({
-          active: "true",
-          closed: "false",
-          limit: String(pageSize),
-          offset: String(page * pageSize),
-          order: "volume24hr",
-          ascending: "false"
-        });
-
-        return fetch(
-          `${API_BASE}?${params.toString()}`,
-          {
-            headers: {
-              Accept: "application/json"
-            },
-            signal: controller.signal
-          }
-        );
+    const response = await fetch(
+      "https://gamma-api.polymarket.com/events?active=true&closed=false&limit=500&order=volume24hr&ascending=false",
+      {
+        headers: {
+          Accept: "application/json"
+        },
+        signal: controller.signal
       }
     );
 
-    const responses = await Promise.all(requests);
-
-    const failedResponse = responses.find(
-      (response) => !response.ok
-    );
-
-    if (failedResponse) {
+    if (!response.ok) {
       throw new Error(
-        `Polymarket returned HTTP ${failedResponse.status}`
+        `Polymarket returned HTTP ${response.status}`
       );
     }
 
-    const pages = await Promise.all(
-      responses.map((response) => response.json())
-    );
+    const payload = await response.json();
 
-    if (!pages.every(Array.isArray)) {
+    if (!Array.isArray(payload)) {
       throw new Error(
-        "Unexpected response from the Polymarket API."
+        "Unexpected response from Polymarket."
       );
     }
 
-    // Remove duplicate events.
     const uniqueEvents = new Map();
 
-    pages.flat().forEach((event) => {
+    payload.forEach((event) => {
       const key = event?.id || event?.slug;
 
       if (key) {
@@ -197,7 +170,6 @@ const [eventsScanned, setEventsScanned] = useState(0);
 
     const allEvents = [...uniqueEvents.values()];
 
-    // Find earnings-related events.
     const matchingEvents = allEvents.filter(
       isEarningsRelated
     );
@@ -210,7 +182,7 @@ const [eventsScanned, setEventsScanned] = useState(0);
   } catch (err) {
     setError(
       err?.name === "AbortError"
-        ? "The market-data request timed out. Please try again."
+        ? "Request timed out. Please try again."
         : err?.message ||
           "Unable to connect to Polymarket."
     );
