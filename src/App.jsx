@@ -150,7 +150,7 @@ const [eventsScanned, setEventsScanned] = useState(0);
   throw new Error(
     `Polymarket HTTP ${response.status}: ${details}`
   );
- }
+}
     const payload = await response.json();
 
     if (!Array.isArray(payload)) {
