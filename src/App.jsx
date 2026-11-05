@@ -329,7 +329,16 @@ const [eventsScanned, setEventsScanned] = useState(0);
         </section>
 
         <section className="stats-grid">
-          <StatCard icon={<Radar size={18} />} label="MATCHING EVENTS" value={status === "ready" ? events.length.toString() : "—"} note="Keyword-matched events" />
+          <StatCard
+  icon={<Radar size={18} />}
+  label="MATCHING EVENTS"
+  value={status === "ready" ? events.length.toString() : "—"}
+  note={
+    status === "ready"
+      ? `Scanned ${eventsScanned} events`
+      : "Keyword-matched events"
+  }
+/>
           <StatCard icon={<TrendingUp size={18} />} label="MATCHED 24H VOLUME" value={status === "ready" ? money(totalVolume) : "—"} note="Sum of matched event volume" />
           <StatCard icon={<BarChart3 size={18} />} label="$10K+ VOLUME" value={status === "ready" ? highVolumeCount.toString() : "—"} note="Higher-volume opportunities" />
           <StatCard icon={<Activity size={18} />} label="DATA STATUS" value={status === "ready" ? "Online" : status === "error" ? "Issue" : "Loading"} note={lastUpdated ? `Updated ${lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "Waiting for API response"} status={status} />
