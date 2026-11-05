@@ -30,100 +30,49 @@ function isEarningsRelated(event) {
     ? event.markets
     : [];
 
-  const titleText = [
+  // Only examine event titles and market questions.
+  // Descriptions can contain unrelated financial keywords.
+  const headlines = [
     event?.title,
-    event?.slug,
-    ...markets.flatMap((market) => [
-      market?.question,
-      market?.slug
-    ])
+    ...markets.map((market) => market?.question)
   ]
     .filter(Boolean)
     .join(" ")
     .toLowerCase()
-    .replace(/[-_]/g, " ");
+    .replace(/[-_]/g, " ")
+    .replace(/[^\w\s$%.-]/g, " ");
 
-  const descriptionText = [
-    event?.description,
-    ...markets.map((market) => market?.description)
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-
-  // Strong indicators that the market concerns company financial results.
-  const earningsTerms = [
-    "earnings",
-    "earnings per share",
-    " eps ",
-    "quarterly results",
-    "quarterly earnings",
-    "financial results",
-    "net income",
-    "revenue",
-    "profit forecast",
-    "earnings beat",
-    "earnings miss",
-    "beat estimates",
-    "miss estimates",
-    "q1 earnings",
-    "q2 earnings",
-    "q3 earnings",
-    "q4 earnings",
-    "q1 results",
-    "q2 results",
-    "q3 results",
-    "q4 results",
-    "quarterly revenue",
-    "quarterly profit",
-    "fiscal quarter",
-    "company earnings",
-    "company revenue",
-    "earnings report",
-    "earnings call"
+  const patterns = [
+    /\bearnings\b/,
+    /\bearnings per share\b/,
+    /\beps\b/,
+    /\brevenue\b/,
+    /\bquarterly results\b/,
+    /\bquarterly earnings\b/,
+    /\bfinancial results\b/,
+    /\bnet income\b/,
+    /\boperating income\b/,
+    /\bgross profit\b/,
+    /\bnet profit\b/,
+    /\bearnings report\b/,
+    /\bearnings call\b/,
+    /\bearnings beat\b/,
+    /\bearnings miss\b/,
+    /\bbeat earnings\b/,
+    /\bmiss earnings\b/,
+    /\bbeat estimates\b/,
+    /\bmiss estimates\b/,
+    /\bq[1-4] earnings\b/,
+    /\bq[1-4] results\b/,
+    /\bquarterly revenue\b/,
+    /\bquarterly profit\b/,
+    /\bfiscal quarter\b/,
+    /\bcompany earnings\b/,
+    /\bcompany revenue\b/,
+    /\b(?:report|post|announce|release)\w*.{0,30}\b(?:earnings|revenue|eps|financial results)\b/
   ];
 
-  const hasEarningsTerm = earningsTerms.some((term) =>
-    ` ${titleText} `.includes(term)
-  );
-
-  if (hasEarningsTerm) {
-    return true;
-  }
-
-  // Use descriptions as a secondary signal to catch differently worded
-  // markets, but require both a financial term and an earnings context.
-  const financialTerms = [
-    "revenue",
-    "earnings",
-    "eps",
-    "net income",
-    "operating income",
-    "gross profit",
-    "net profit",
-    "sales",
-    "profit"
-  ];
-
-  const earningsContext = [
-    "quarter",
-    "quarterly",
-    "fiscal year",
-    "financial results",
-    "earnings report",
-    "earnings call",
-    "reported results"
-  ];
-
-  const hasFinancialTerm = financialTerms.some((term) =>
-    descriptionText.includes(term)
-  );
-
-  const hasEarningsContext = earningsContext.some((term) =>
-    descriptionText.includes(term)
-  );
-
-  return hasFinancialTerm && hasEarningsContext;
+  return patterns.some((pattern) => pattern.test(headlines));
 }
 
 function number(value) {
