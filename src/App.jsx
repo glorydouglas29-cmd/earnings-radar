@@ -169,6 +169,7 @@ export default function App() {
   const [status, setStatus] = useState("loading");
   const [error, setError] = useState("");
   const [lastUpdated, setLastUpdated] = useState(null);
+const [eventsScanned, setEventsScanned] = useState(0);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
   const [sort, setSort] = useState("volume");
