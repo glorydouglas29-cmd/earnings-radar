@@ -145,11 +145,12 @@ const [eventsScanned, setEventsScanned] = useState(0);
     );
 
     if (!response.ok) {
-      throw new Error(
-        `Polymarket returned HTTP ${response.status}`
-      );
-    }
+  const details = await response.text();
 
+  throw new Error(
+    `Polymarket HTTP ${response.status}: ${details}`
+  );
+ }
     const payload = await response.json();
 
     if (!Array.isArray(payload)) {
