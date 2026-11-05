@@ -135,7 +135,7 @@ const [eventsScanned, setEventsScanned] = useState(0);
 
   try {
     const response = await fetch(
-      "https://gamma-api.polymarket.com/events?active=true&closed=false&limit=500&order=volume24hr&ascending=false",
+      "https://gamma-api.polymarket.com/events?active=true&closed=false&limit=100&order=volume24hr&ascending=false",
       {
         headers: {
           Accept: "application/json"
