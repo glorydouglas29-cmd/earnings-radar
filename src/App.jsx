@@ -178,34 +178,66 @@ export default function App() {
   setError("");
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15000);
+
+  const timeout = setTimeout(() => {
+    controller.abort();
+  }, 30000);
 
   try {
-    const response = await fetch(
-      "https://gamma-api.polymarket.com/events?active=true&closed=false&limit=500&order=volume24hr&ascending=false",
-      {
-        headers: {
-          Accept: "application/json"
-        },
-        signal: controller.signal
+    const pageSize = 100;
+    const pageCount = 10;
+
+    // Request 10 pages of 100 events.
+    const requests = Array.from(
+      { length: pageCount },
+      (_, page) => {
+        const params = new URLSearchParams({
+          active: "true",
+          closed: "false",
+          limit: String(pageSize),
+          offset: String(page * pageSize),
+          order: "volume24hr",
+          ascending: "false"
+        });
+
+        return fetch(
+          `${API_BASE}?${params.toString()}`,
+          {
+            headers: {
+              Accept: "application/json"
+            },
+            signal: controller.signal
+          }
+        );
       }
     );
 
-    if (!response.ok) {
+    const responses = await Promise.all(requests);
+
+    const failedResponse = responses.find(
+      (response) => !response.ok
+    );
+
+    if (failedResponse) {
       throw new Error(
-        `Polymarket returned HTTP ${response.status}`
+        `Polymarket returned HTTP ${failedResponse.status}`
       );
     }
 
-    const payload = await response.json();
+    const pages = await Promise.all(
+      responses.map((response) => response.json())
+    );
 
-    if (!Array.isArray(payload)) {
-      throw new Error("Unexpected API response.");
+    if (!pages.every(Array.isArray)) {
+      throw new Error(
+        "Unexpected response from the Polymarket API."
+      );
     }
 
+    // Remove duplicate events.
     const uniqueEvents = new Map();
 
-    payload.forEach((event) => {
+    pages.flat().forEach((event) => {
       const key = event?.id || event?.slug;
 
       if (key) {
@@ -213,19 +245,23 @@ export default function App() {
       }
     });
 
-    const matchingEvents = [
-      ...uniqueEvents.values()
-    ].filter(isEarningsRelated);
+    const allEvents = [...uniqueEvents.values()];
 
+    // Find earnings-related events.
+    const matchingEvents = allEvents.filter(
+      isEarningsRelated
+    );
+
+    setEventsScanned(allEvents.length);
     setEvents(matchingEvents);
     setLastUpdated(new Date());
     setStatus("ready");
 
   } catch (err) {
     setError(
-      err.name === "AbortError"
+      err?.name === "AbortError"
         ? "The market-data request timed out. Please try again."
-        : err.message ||
+        : err?.message ||
           "Unable to connect to Polymarket."
     );
 
