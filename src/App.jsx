@@ -119,45 +119,35 @@ export default function App() {
   setStatus("loading");
   setError("");
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+
   try {
-    const requests = Array.from(
-      { length: PAGE_COUNT },
-      (_, page) =>
-        fetch(
-          `${API_BASE}?active=true&closed=false&limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}&order=volume_24hr&ascending=false`,
-          {
-            headers: {
-              Accept: "application/json"
-            }
-          }
-        )
+    const response = await fetch(
+      "https://gamma-api.polymarket.com/events?active=true&closed=false&limit=500&order=volume24hr&ascending=false",
+      {
+        headers: {
+          Accept: "application/json"
+        },
+        signal: controller.signal
+      }
     );
 
-    const responses = await Promise.all(requests);
-
-    const failedResponse = responses.find(
-      (response) => !response.ok
-    );
-
-    if (failedResponse) {
+    if (!response.ok) {
       throw new Error(
-        `Polymarket returned HTTP ${failedResponse.status}`
+        `Polymarket returned HTTP ${response.status}`
       );
     }
 
-    const pages = await Promise.all(
-      responses.map((response) => response.json())
-    );
+    const payload = await response.json();
 
-    if (!pages.every(Array.isArray)) {
-      throw new Error(
-        "Unexpected response from the market data API."
-      );
+    if (!Array.isArray(payload)) {
+      throw new Error("Unexpected API response.");
     }
 
     const uniqueEvents = new Map();
 
-    pages.flat().forEach((event) => {
+    payload.forEach((event) => {
       const key = event?.id || event?.slug;
 
       if (key) {
@@ -175,11 +165,16 @@ export default function App() {
 
   } catch (err) {
     setError(
-      err?.message ||
-      "Could not load live markets. The public API may be temporarily unavailable or blocked by your network."
+      err.name === "AbortError"
+        ? "The market-data request timed out. Please try again."
+        : err.message ||
+          "Unable to connect to Polymarket."
     );
 
     setStatus("error");
+
+  } finally {
+    clearTimeout(timeout);
   }
 }
   useEffect(() => {
