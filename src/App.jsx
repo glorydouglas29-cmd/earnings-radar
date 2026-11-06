@@ -258,21 +258,315 @@ export default function App() {
         isEarningsRelated
       );
 
-      setEvents(matchingEvents);
-      setLastUpdated(new Date());
-      setStatus("ready");
-    } catch (err) {
-      console.error("Earnings Radar API error:", err);
+            setError(message);
+      setStatus("error");
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
 
-      let message;
+  useEffect(() => {
+    loadEvents();
+  }, []);
 
-      if (err?.name === "AbortError") {
-        message =
-          "The request timed out after 45 seconds. Please try again.";
-      } else {
-        message =
-          err?.message ||
-          "An unknown error occurred while loading market data.";
+  const filteredEvents = useMemo(() => {
+    let result = [...events];
+
+    if (query.trim()) {
+      const searchTerm = query.toLowerCase();
+
+      result = result.filter((event) =>
+        textOf(event).includes(searchTerm)
+      );
+    }
+
+    if (filter === "high-volume") {
+      result = result.filter(
+        (event) => getVolume(event) >= 10000
+      );
+    }
+
+    if (filter === "multiple-markets") {
+      result = result.filter(
+        (event) => marketCount(event) > 1
+      );
+    }
+
+    result.sort((a, b) => {
+      if (sort === "volume") {
+        return getVolume(b) - getVolume(a);
       }
 
-      set
+      if (sort === "newest") {
+        return (
+          new Date(b.startDate || 0).getTime() -
+          new Date(a.startDate || 0).getTime()
+        );
+      }
+
+      return a.title?.localeCompare(b.title || "") || 0;
+    });
+
+    return result;
+  }, [events, query, filter, sort]);
+
+  return (
+    <main className="min-h-screen bg-slate-950 px-4 py-8 text-white sm:px-8">
+      <div className="mx-auto max-w-6xl">
+        <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="mb-2 flex items-center gap-2 text-cyan-400">
+              <Radar size={24} />
+              <span className="font-semibold tracking-widest">
+                EARNINGS RADAR
+              </span>
+            </div>
+
+            <h1 className="text-3xl font-bold sm:text-4xl">
+              Earnings Market Scanner
+            </h1>
+
+            <p className="mt-2 text-slate-400">
+              Discover prediction markets related to company earnings,
+              EPS, revenue and financial performance.
+            </p>
+          </div>
+
+          <button
+            onClick={loadEvents}
+            disabled={status === "loading"}
+            className="flex items-center gap-2 rounded-xl bg-cyan-500 px-4 py-3 font-semibold text-slate-950 disabled:opacity-50"
+          >
+            <RefreshCw
+              size={18}
+              className={
+                status === "loading" ? "animate-spin" : ""
+              }
+            />
+            Refresh markets
+          </button>
+        </header>
+
+        <section className="mb-6 grid gap-4 sm:grid-cols-3">
+          <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+            <Activity className="mb-3 text-cyan-400" />
+            <p className="text-sm text-slate-400">
+              Events scanned
+            </p>
+            <p className="mt-1 text-3xl font-bold">
+              {eventsScanned}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+            <BarChart3 className="mb-3 text-emerald-400" />
+            <p className="text-sm text-slate-400">
+              Earnings matches
+            </p>
+            <p className="mt-1 text-3xl font-bold">
+              {events.length}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+            <CheckCircle2 className="mb-3 text-purple-400" />
+            <p className="text-sm text-slate-400">
+              Connection status
+            </p>
+            <p className="mt-1 text-xl font-bold">
+              {status === "loading"
+                ? "Loading..."
+                : status === "ready"
+                  ? "Connected"
+                  : "Needs attention"}
+            </p>
+            {lastUpdated && (
+              <p className="mt-1 text-xs text-slate-500">
+                Updated {lastUpdated.toLocaleTimeString()}
+              </p>
+            )}
+          </div>
+        </section>
+
+        {error && (
+          <div className="mb-6 flex gap-3 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-red-300">
+            <CircleAlert className="shrink-0" size={20} />
+            <div>
+              <p className="font-semibold">
+                Could not load market data
+              </p>
+              <p className="mt-1 break-words text-sm">
+                {error}
+              </p>
+            </div>
+          </div>
+        )}
+
+        <section className="mb-6 grid gap-3 sm:grid-cols-3">
+          <div className="relative">
+            <Search
+              className="absolute left-3 top-3.5 text-slate-500"
+              size={18}
+            />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search companies or markets..."
+              className="w-full rounded-xl border border-slate-800 bg-slate-900 py-3 pl-10 pr-3 outline-none focus:border-cyan-500"
+            />
+          </div>
+
+          <div className="relative">
+            <Filter
+              className="absolute left-3 top-3.5 text-slate-500"
+              size={18}
+            />
+            <select
+              value={filter}
+              onChange={(event) => setFilter(event.target.value)}
+              className="w-full rounded-xl border border-slate-800 bg-slate-900 py-3 pl-10 pr-3 outline-none focus:border-cyan-500"
+            >
+              <option value="all">All earnings markets</option>
+              <option value="high-volume">
+                High volume ($10k+)
+              </option>
+              <option value="multiple-markets">
+                Multiple markets
+              </option>
+            </select>
+          </div>
+
+          <select
+            value={sort}
+            onChange={(event) => setSort(event.target.value)}
+            className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-3 outline-none focus:border-cyan-500"
+          >
+            <option value="volume">Sort by trading volume</option>
+            <option value="newest">Sort by start date</option>
+            <option value="title">Sort alphabetically</option>
+          </select>
+        </section>
+
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-xl font-bold">
+            Earnings markets
+          </h2>
+          <span className="text-sm text-slate-400">
+            {filteredEvents.length} results
+          </span>
+        </div>
+
+        {status === "loading" && events.length === 0 ? (
+          <div className="rounded-2xl border border-slate-800 bg-slate-900 p-10 text-center">
+            <LoaderCircle
+              className="mx-auto mb-4 animate-spin text-cyan-400"
+              size={32}
+            />
+            <p className="font-semibold">
+              Scanning Polymarket...
+            </p>
+            <p className="mt-2 text-sm text-slate-400">
+              Searching public event data for earnings-related markets.
+            </p>
+          </div>
+        ) : filteredEvents.length === 0 ? (
+          <div className="rounded-2xl border border-slate-800 bg-slate-900 p-10 text-center">
+            <Search
+              className="mx-auto mb-4 text-slate-500"
+              size={32}
+            />
+            <p className="font-semibold">
+              No matching markets found
+            </p>
+            <p className="mt-2 text-sm text-slate-400">
+              Try another search term or refresh the data.
+              The scanner currently checks up to 500 events.
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2">
+            {filteredEvents.map((event) => (
+              <article
+                key={event.id || event.slug}
+                className="rounded-2xl border border-slate-800 bg-slate-900 p-5 transition hover:border-cyan-500/50"
+              >
+                <div className="mb-4 flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-2 text-xs text-cyan-400">
+                    <TrendingUp size={15} />
+                    EARNINGS MARKET
+                  </div>
+
+                  <span className="whitespace-nowrap text-xs text-slate-400">
+                    {eventDate(event)}
+                  </span>
+                </div>
+
+                <h3 className="text-lg font-semibold leading-snug">
+                  {event.title || "Untitled market"}
+                </h3>
+
+                {event.description && (
+                  <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-slate-400">
+                    {event.description}
+                  </p>
+                )}
+
+                <div className="mt-5 grid grid-cols-2 gap-3">
+                  <div className="rounded-xl bg-slate-800/70 p-3">
+                    <p className="text-xs text-slate-400">
+                      Trading volume
+                    </p>
+                    <p className="mt-1 font-bold">
+                      {money(getVolume(event))}
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl bg-slate-800/70 p-3">
+                    <p className="text-xs text-slate-400">
+                      Markets in event
+                    </p>
+                    <p className="mt-1 font-bold">
+                      {marketCount(event)}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 pt-4">
+                  <span className="flex items-center gap-2 text-xs text-slate-400">
+                    <CalendarDays size={14} />
+                    {eventDate(event)}
+                  </span>
+
+                  <a
+                    href={marketUrl(event)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-2 rounded-lg bg-cyan-500 px-3 py-2 text-sm font-semibold text-slate-950"
+                  >
+                    View on Polymarket
+                    <ArrowUpRight size={16} />
+                    <ExternalLink size={14} />
+                  </a>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+
+        <footer className="mt-10 border-t border-slate-800 pt-5 text-xs leading-relaxed text-slate-500">
+          <p>
+            Data is retrieved from Polymarket's public event API.
+            Markets are identified using earnings-related keywords;
+            this does not guarantee that every result is an earnings
+            market or that every earnings market will be found.
+          </p>
+          <p className="mt-2 flex items-center gap-2">
+            <WalletCards size={14} />
+            Always open the original market to verify its question,
+            resolution criteria and current trading activity.
+          </p>
+        </footer>
+      </div>
+    </main>
+  );
+}
